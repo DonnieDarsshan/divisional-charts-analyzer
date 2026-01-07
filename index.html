@@ -241,6 +241,21 @@ hr{
 
 
 
+/* =========================
+   CUSP DISPLAY INSIDE KUNDALI
+   ========================= */
+.siCusp{
+  font-size:12px;
+  font-weight:800;
+  color:#facc15;
+  margin-top:2px;
+}
+
+
+
+
+
+
 
 
 /* =========================================
@@ -561,6 +576,53 @@ hr{
 
 
 
+
+
+/* =========================================
+   FLOATING TABLE NAV BAR (MAC-DOCK STYLE)
+   ========================================= */
+#tableNavBar{
+  position:fixed;
+  top:12px;
+  right:14px;
+  display:flex;
+  gap:6px;
+  z-index:9999;
+  padding:6px 8px;
+  background:rgba(2,27,22,0.85);
+  border:1px solid var(--border);
+  border-radius:12px;
+  box-shadow:0 0 14px rgba(16,185,129,.45);
+}
+
+#tableNavBar button{
+  all:unset;                 /* 🔥 kill global button styles */
+  width:24px;
+  height:24px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:6px;
+  font-size:13px;
+  font-weight:900;
+  cursor:pointer;
+  background:linear-gradient(135deg,#10b981,#d4af37);
+  color:#021b16;
+  box-shadow:0 0 6px rgba(16,185,129,.55);
+}
+
+
+#tableNavBar button:hover{
+  background:linear-gradient(135deg,#34d399,#facc15);
+}
+
+
+
+
+
+
+
+
 </style>
 
 
@@ -595,7 +657,25 @@ hr{
 
 <body>
 
-<h2>DIVISIONAL CHARTS ANALYZER</h2>
+
+<!-- =========================================
+     FLOATING TABLE NAVIGATION BAR
+     ========================================= -->
+<div id="tableNavBar">
+  <button onclick="scrollToTable('nav1')">A</button>
+  <button onclick="scrollToTable('nav2')">B</button>
+  <button onclick="scrollToTable('table1')">1</button>
+  <button onclick="scrollToTable('table2')">2</button>
+  <button onclick="scrollToTable('table3')">3</button>
+  <button onclick="scrollToTable('table4')">4</button>
+  <button onclick="scrollToTable('table5')">5</button>
+</div>
+
+
+
+
+
+<h2 id="nav1">DIVISIONAL CHARTS ANALYZER</h2>
 
 <!-- =========================
      PERSON NAME
@@ -652,6 +732,7 @@ Person Name :
   <button onclick="saveJSON()">Save</button>
   <button onclick="loadJSON()">Load</button>
   <button onclick="clearAll()">Clear All</button>
+  <button onclick="loadSwissJSON()">Load Swiss Ephemeris</button>
 </div>
 
 <script>
@@ -666,6 +747,31 @@ const planets=[
   "Surya","Chandra","Mangala","Rahu",
   "Jupiter","Saturn","Budha","Ketu","Venus"
 ];
+
+
+
+
+
+
+/* =========================================================
+   CORE KUNDALI ENTITY REGISTRY
+   (PLANETS + LAGNA + 1–12 CSL)
+   ========================================================= */
+
+const CORE_ENTITIES = [
+  "Lagna",
+  "Surya","Chandra","Mangala","Rahu",
+  "Jupiter","Saturn","Budha","Ketu","Venus",
+  ...Array.from({length:12},(_,i)=>(i+1)+"CSL")
+];
+
+
+
+
+
+
+
+
 
 /* =========================================================
    BUILD INPUT TABLE
@@ -903,7 +1009,7 @@ function clearAll(){
 
 <hr>
 
-<h2 style="text-align:center">SOUTH INDIAN KUNDALI</h2>
+<h2 id="nav2" style="text-align:center">SOUTH INDIAN KUNDALI</h2>
 
 <!-- =========================
      PIVOT CONTROL
@@ -918,9 +1024,20 @@ function clearAll(){
   <!-- ===== TARA MODE (NEW) ===== -->
   <span>Tara :</span>
   <select id="taraMode">
-    <option value="Star Lord" selected>Star Lord</option>
-    <option value="Planet">Planet</option>
-  </select>
+  <option value="Star Lord" selected>Star Lord</option>
+  <option value="Planet">Planet</option>
+  <option value="Surya">Surya</option>
+  <option value="Chandra">Chandra</option>
+  <option value="Mangala">Mangala</option>
+  <option value="Rahu">Rahu</option>
+  <option value="Jupiter">Jupiter</option>
+  <option value="Saturn">Saturn</option>
+  <option value="Budha">Budha</option>
+  <option value="Ketu">Ketu</option>
+  <option value="Venus">Venus</option>
+  
+</select>
+
   <!-- =========================== -->
 
   <label>
@@ -937,11 +1054,23 @@ function clearAll(){
     <input type="checkbox" id="vedicMode" checked>
     Vedic (15°)
   </label>
+  
+  <label>
+  <input type="checkbox" id="showCuspMode">
+  Cusp
+</label>
+
 
   <label>
     <input type="checkbox" id="westAspMode" checked>
     West Asp
   </label>
+  
+  <label>
+  <input type="checkbox" id="trueNodeMode" checked>
+  True Node
+</label>
+
 
   <div id="colorPalette">
     <div class="colorBox purple active" data-color="purple" title="Royal Purple"></div>
@@ -978,6 +1107,18 @@ function clearAll(){
 
 
 <script>
+
+let USE_TRUE_NODE =
+  document.getElementById("trueNodeMode")?.checked || false;
+
+// 🔒 RAW SWISS NODE STORAGE (ABSOLUTE, NEVER SHIFTED)
+window.__rawRahuAbs = null;
+window.__rawKetuAbs = null;
+window.__rawRahuTrueAbs = null;
+window.__rawKetuTrueAbs = null;
+
+
+
 /* =========================================================
    SOUTH INDIAN SIGN LAYOUT (FIXED)
    (MATCHES YOUR ORIGINAL PROJECT)
@@ -989,20 +1130,45 @@ const SI_SIGNS = [
   "Sagittarius","Scorpio","Libra","Virgo"
 ];
 
+
+
+
+
+
+
+
+
+
 /* =========================================================
-   BUILD PIVOT DROPDOWN
+   BUILD PIVOT DROPDOWN (PLANETS + CSL)
    ========================================================= */
 (function(){
   let sel = document.getElementById("kundaliPivot");
-  sel.innerHTML="";
-  ["Lagna","Surya","Chandra","Mangala","Rahu",
-   "Jupiter","Saturn","Budha","Ketu","Venus"].forEach(p=>{
-    let o=document.createElement("option");
-    o.value=o.text=p;
+  sel.innerHTML = "";
+
+  /* ---------- PLANETS + LAGNA ---------- */
+  [
+    "Lagna","Surya","Chandra","Mangala","Rahu",
+    "Jupiter","Saturn","Budha","Ketu","Venus"
+  ].forEach(p=>{
+    let o = document.createElement("option");
+    o.value = p;
+    o.text  = p;
     sel.appendChild(o);
   });
-  sel.value="Lagna";
+
+  /* ---------- CSL PIVOTS (1 CSL = DUPLICATE OF LAGNA) ---------- */
+  for(let i = 1; i <= 12; i++){
+    let o = document.createElement("option");
+    o.value = i + "CSL";      // internal key (used by logic)
+    o.text  = i + " CSL";     // UI label with SPACE
+    sel.appendChild(o);
+  }
+
+  /* default */
+  sel.value = "Lagna";
 })();
+
 
 /* =========================================================
    INIT SOUTH INDIAN KUNDALI
@@ -1024,14 +1190,83 @@ function initSIKundali(){
   });
 }
 
+
+
+
+
+function formatDegMinSec(abs){
+
+  abs = ((abs % 360) + 360) % 360;
+
+  let degFloat = abs % 30;
+  let deg = Math.floor(degFloat);
+  let minFloat = (degFloat - deg) * 60;
+  let min = Math.floor(minFloat);
+  let sec = Math.round((minFloat - min) * 60);
+
+  if(sec === 60){ sec = 0; min++; }
+  if(min === 60){ min = 0; deg++; }
+
+  return `${deg}°${String(min).padStart(2,"0")}′${String(sec).padStart(2,"0")}″`;
+}
+
+
+
+
+
+
 /* =========================================================
    GET ABSOLUTE DEGREE (FROM PART-1)
    ========================================================= */
 
 
-
 function getAbsDeg(entity){
-  let sign = document.getElementById(entity+"_sign").value;
+
+  /* =========================
+     CUSP ENTITY (1CSL–12CSL)
+     ========================= */
+  if(entity.endsWith("CSL")){
+    const data = window.__lastSwissData;
+    if(!data || !data.cusps) return null;
+
+    let n = parseInt(entity,10);
+    let abs = data.cusps[String(n)];
+    if(typeof abs !== "number") return null;
+
+    return ((abs % 360) + 360) % 360;
+  }
+
+  /* =========================
+     TRUE / MEAN NODE (RAW ONLY)
+     ========================= */
+  if(entity === "Rahu" || entity === "Ketu"){
+
+    let abs = null;
+
+    if(entity === "Rahu"){
+      abs = USE_TRUE_NODE
+        ? window.__rawRahuTrueAbs
+        : window.__rawRahuAbs;
+    }
+
+    if(entity === "Ketu"){
+      abs = USE_TRUE_NODE
+        ? window.__rawKetuTrueAbs
+        : window.__rawKetuAbs;
+    }
+
+    if(typeof abs !== "number") return null;
+
+    return ((abs % 360) + 360) % 360;
+  }
+
+  /* =========================
+     PLANET / LAGNA (UI INPUT)
+     ========================= */
+  let signEl = document.getElementById(entity+"_sign");
+  if(!signEl) return null;
+
+  let sign = signEl.value;
   let signIndex = signs.indexOf(sign);
   if(signIndex <= 0) return null;
 
@@ -1041,6 +1276,35 @@ function getAbsDeg(entity){
 
   return (signIndex - 1) * 30 + deg + min/60 + sec/3600;
 }
+
+
+
+
+
+function getPivotAbs(entity){
+  return getAbsDeg(entity);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+function getPivotSign(entity){
+
+  let abs = getAbsDeg(entity);
+  if(abs === null) return "";
+
+  let signIndex = Math.floor(abs / 30);
+  return signs[signIndex + 1] || "";
+}
+
 
 
 
@@ -1057,23 +1321,27 @@ function getGlobalOffset(){
   }
 
   let pivot = document.getElementById("kundaliPivot").value;
-  let pivotAbs = getAbsDeg(pivot);
+  let pivotAbs = getPivotAbs(pivot);
   if(pivotAbs === null) return 0;
 
   let pivotDeg = pivotAbs % 30;
 
-  /* KP → pivot becomes 0° */
+  // KP → pivot becomes 0°
   if(kpMode.checked){
     return -pivotDeg;
   }
 
-  /* VEDIC → pivot becomes 15° */
+  // Vedic → pivot becomes 15°
   if(vedicMode.checked){
     return 15 - pivotDeg;
   }
 
   return 0;
 }
+
+
+
+
 
 
 
@@ -1097,11 +1365,20 @@ function drawSIKundali(){
 
   initSIKundali();
 
-  let pivot = document.getElementById("kundaliPivot").value;
-  let pivotSign = document.getElementById(pivot+"_sign").value;
-  let pivotAbs  = getAbsDeg(pivot);
 
-  if(!pivotSign || pivotAbs===null) return;
+/* 🔥 HARD RESET ALL SIGN CONTENT (PREVENT DUPLICATION) */
+document
+  .querySelectorAll("#siKundali .siList")
+  .forEach(l => l.innerHTML = "");
+
+
+
+  let pivot = document.getElementById("kundaliPivot").value;
+  let pivotSign = getPivotSign(pivot);
+  let pivotAbs  = getPivotAbs(pivot);
+
+  if(!pivotSign || pivotAbs === null) return;
+
 
 
 
@@ -1196,11 +1473,76 @@ let offset = getGlobalOffset();
 
 let buckets = {};
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /* 1️⃣ COLLECT PLANETS INTO SIGN BUCKETS */
 [
  "Lagna","Surya","Chandra","Mangala","Rahu",
  "Jupiter","Saturn","Budha","Ketu","Venus"
 ].forEach(label => {
+
+
+
+
+/* 1️⃣B COLLECT CUSPS AS PLANET-EQUIVALENTS */
+if(document.getElementById("showCuspMode").checked){
+
+  const data = window.__lastSwissData;
+  const cusps = data?.cusps || {};
+
+  Object.keys(cusps)
+    .map(Number)
+    .sort((a,b)=>a-b)
+    .forEach(c => {
+
+      let abs = cusps[String(c)];
+      if(typeof abs !== "number") return;
+
+      let shifted = abs + offset;
+      shifted = ((shifted % 360) + 360) % 360;
+
+      let signIndex = Math.floor(shifted / 30);
+      let sign = signs[signIndex + 1];
+      if(!sign) return;
+
+      if(!buckets[sign]) buckets[sign] = [];
+
+
+
+	/* ❌ PREVENT DUPLICATE CUSP INSERTION */
+		if(
+		  !buckets[sign].some(x => x.type === "cusp" && x.label === `${c}C`)
+		){
+		  buckets[sign].push({
+			type: "cusp",
+			label: `${c}C`,
+			deg: shifted % 30,
+			abs: shifted,
+			signIndex,
+			text: `${c}C ${formatDegMinSec(shifted)}`
+		  });
+		}
+
+	  
+	  
+    });
+}
+
+
+
+
 
   let rawAbs = getAbsDeg(label);
   if(rawAbs === null) return;
@@ -1250,20 +1592,41 @@ Object.keys(buckets).forEach(sign => {
   let cell = cells.find(c => c.dataset.sign === sign);
   if(!cell) return;
 
-  list.forEach(p => {
-    let d = document.createElement("div");
-    d.textContent = `${p.label} ${p.deg}°`;
-    cell.querySelector(".siList").appendChild(d);
-  });
+  
+  
+  
+  
+  
+list.forEach(p => {
+  let d = document.createElement("div");
+  d.className = (p.type === "cusp") ? "siCusp" : "";
+  d.textContent = p.text ?? `${p.label} ${Math.floor(p.deg)}°`;
+  cell.querySelector(".siList").appendChild(d);
+});
+
+
+  
+  
 });
 
    
 }
 
+
+
+
+
+
+
+
+
 /* =========================================================
    AUTO REFRESH HOOKS
    ========================================================= */
 document.getElementById("kundaliPivot").onchange = drawSIKundali;
+document.getElementById("showCuspMode")
+  ?.addEventListener("change", drawSIKundali);
+
 
 ["Lagna","Surya","Chandra","Mangala","Rahu",
  "Jupiter","Saturn","Budha","Ketu","Venus"].forEach(p=>{
@@ -1296,7 +1659,11 @@ drawSIKundali();
 
 <hr>
 
-<h2 style="text-align:center">PLANET COUNTER TABLE</h2>
+
+<h2 id="table1" style="text-align:center">
+TABLE 1 -  PLANET COUNTER TABLE
+</h2>
+
 
 <div style="display:flex;justify-content:center">
   <table id="counterTable" style="max-width:900px">
@@ -1338,7 +1705,7 @@ function getHouseFromPivot(entity){
 
   let pivot = document.getElementById("kundaliPivot").value;
 
-  let pivotAbs = getAbsDeg(pivot);
+  let pivotAbs = getPivotAbs(pivot);
   let entAbs   = getAbsDeg(entity);
 
   if(pivotAbs === null || entAbs === null) return 1;
@@ -1429,7 +1796,13 @@ window.__selectedCounterRows = {};
    DISPOSITORS FOR RAHU / KETU
    ========================================= */
 function getDispositor(planet){
-  let sign = document.getElementById(planet+"_sign").value;
+
+  let abs = getAbsDeg(planet);
+  if(abs === null) return "";
+
+  let signIndex = Math.floor(abs / 30);
+  let sign = signs[signIndex + 1];
+
   return SIGN_LORDS[sign] || "";
 }
 
@@ -1447,7 +1820,7 @@ function getDispositor(planet){
 
 		  let pivot = document.getElementById("kundaliPivot").value;
 
-		  let pAbs = getAbsDeg(pivot);
+		  let pAbs = getPivotAbs(pivot);
 		  let eAbs = getAbsDeg(entity);
 		  if(pAbs===null || eAbs===null) return "";
 
@@ -1553,10 +1926,9 @@ const SIGN_LORDS = {
 
 function getHouseLordships(planet){
 
-  /* 🔥 pivot sign, not Lagna */
   let pivot = document.getElementById("kundaliPivot").value;
-  let pivotSign = document.getElementById(pivot + "_sign").value;
-  if(!pivotSign) return "";
+  let pivotAbs = getPivotAbs(pivot);
+  if(pivotAbs === null) return "";
 
   const ZODIAC = [
     "Aries","Taurus","Gemini","Cancer",
@@ -1564,17 +1936,15 @@ function getHouseLordships(planet){
     "Sagittarius","Capricorn","Aquarius","Pisces"
   ];
 
-  let pivotIndex = ZODIAC.indexOf(pivotSign);
-  if(pivotIndex === -1) return "";
-
+  let pivotSignIndex = Math.floor(pivotAbs / 30);
   let houses = [];
 
   for(let i=0;i<12;i++){
-    let sign = ZODIAC[(pivotIndex + i) % 12];
+    let sign = ZODIAC[(pivotSignIndex + i) % 12];
     let lord = SIGN_LORDS[sign];
 
     if(lord === planet){
-      houses.push(i+1);
+      houses.push(i + 1);
     }
   }
 
@@ -1591,10 +1961,12 @@ function getHouseLordships(planet){
 
 
 
+
 function getRahuKetuHouseLordships(node){
 
   /* 1️⃣ Node sign */
-  let nodeSign = document.getElementById(node + "_sign").value;
+  
+  let nodeSign = signs[Math.floor(getAbsDeg(node) / 30) + 1];
   if(!nodeSign) return "";
 
   /* 2️⃣ Dispositor planet */
@@ -1666,15 +2038,18 @@ if(pivot === "Lagna"){
   order = ["Lagna", ...BASE_PLANET_ORDER];
 }
 
-/* Pivot = Planet → rotate cyclic order */
-else{
+/* 🔥 PLANET PIVOT */
+else if(BASE_PLANET_ORDER.includes(pivot)){
   let idx = BASE_PLANET_ORDER.indexOf(pivot);
-  if(idx === -1) return;
-
   order = [
     ...BASE_PLANET_ORDER.slice(idx),
     ...BASE_PLANET_ORDER.slice(0, idx)
   ];
+}
+
+/* 🔥 CSL PIVOT → DO NOT ROTATE PLANET ORDER */
+else{
+  order = ["Lagna", ...BASE_PLANET_ORDER];
 }
 
 
@@ -2126,7 +2501,32 @@ function getPivotReferenceAbs(pivot){
 function redrawAll(){
   drawSIKundali();
   buildCounterTable();
-  redrawPLL();   // 🔥 FORCE PLL EVERY TIME
+  redrawPLL();
+  buildCuspalTable();
+  buildCuspalPromiseReader();   // ✅ TABLE 4 LINKED
+	buildDynamicCuspalPromiseReader(); // ✅ TABLE 5
+}
+
+
+
+
+/* =========================================================
+   FLOATING NAVIGATION SCROLL (TABLE 1–5)
+   ========================================================= */
+function scrollToTable(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+
+  const yOffset = -70; // adjust for fixed top UI
+  const y =
+    el.getBoundingClientRect().top +
+    window.pageYOffset +
+    yOffset;
+
+  window.scrollTo({
+    top: y,
+    behavior: "smooth"
+  });
 }
 
 
@@ -2190,13 +2590,73 @@ document.querySelectorAll("#colorPalette .colorBox").forEach(box=>{
 
 <hr>
 
-<h2 style="text-align:center">
-PLANETARY LEVEL BY LEVEL ANALYZER
+<h2 id="table2" style="text-align:center">
+TABLE 2 - PLANETARY LEVEL BY LEVEL ANALYZER
 </h2>
 
 
 
 <div id="pllContainer"></div>
+
+
+
+
+<hr>
+
+<h2 id="table3" style="text-align:center">
+TABLE 3 - CUSPAL INTERLINK TABLE
+</h2>
+
+<div style="display:flex;justify-content:center">
+  <table id="cuspTable" style="max-width:1100px">
+    <tr>
+      <th>Bhava</th>
+      <th>Zodiac Sign</th>
+      <th>Degree</th>
+      <th>Sign Lord</th>
+      <th>Star Lord</th>
+      <th>Sub Lord</th>
+      <th>Sub-Sub Lord</th>
+    </tr>
+  </table>
+</div>
+
+
+
+
+<hr>
+
+<h2 id="table4" style="text-align:center">
+TABLE 4 - STATIC CUSPAL PROMISE READER
+</h2>
+
+
+
+<div style="text-align:center;margin-bottom:14px;font-weight:800">
+  <label>
+    <input type="checkbox" id="rotateCuspalMode" checked>
+    Rotate As Per Cusp
+  </label>
+</div>
+
+<div id="cuspalPromiseContainer"></div>
+
+
+
+
+<h2 id="table5" style="text-align:center">
+TABLE 5 - DYNAMIC CUSPAL PROMISE READER
+</h2>
+
+<div style="text-align:center;margin-bottom:14px;font-weight:800">
+  <label>
+    <input type="checkbox" id="rotateDynamicCuspalMode" checked>
+    Rotate As Per Cusp
+  </label>
+</div>
+
+<div id="dynamicCuspalPromiseContainer"></div>
+
 
 
 
@@ -2577,6 +3037,9 @@ const TARA_PLANET_ORDER = [
 /* =========================================================
    CALCULATE TARA (LABEL ONLY — NO PLANET NAME)
    ========================================================= */
+
+
+
 function getTaraLabel(actualPlanet, basePlanet){
 
   let mode = document.getElementById("taraMode").value;
@@ -2585,24 +3048,29 @@ function getTaraLabel(actualPlanet, basePlanet){
   let janmaPlanet = "";
 
   /* =========================
-     CASE 1 : PIVOT = LAGNA
+     MODE : STAR LORD (DEFAULT)
      ========================= */
-  if(pivot === "Lagna"){
+  if(mode === "Star Lord"){
 
-    // Janma Tara is ALWAYS Lagna's Star Lord
-    janmaPlanet = getStarLord("Lagna");
-  }
-
-  /* =========================
-     CASE 2 : PIVOT = PLANET
-     ========================= */
-  else{
-
-    if(mode === "Planet"){
-      janmaPlanet = pivot;
+    if(pivot === "Lagna"){
+      janmaPlanet = getStarLord("Lagna");
     }else{
       janmaPlanet = getStarLord(pivot);
     }
+  }
+
+  /* =========================
+     MODE : PLANET (PIVOT)
+     ========================= */
+  else if(mode === "Planet"){
+    janmaPlanet = pivot;
+  }
+
+  /* =========================
+     MODE : FIXED PLANET
+     ========================= */
+  else{
+    janmaPlanet = mode; // Chandra, Mangala, etc.
   }
 
   if(!janmaPlanet || !actualPlanet) return "";
@@ -2615,7 +3083,6 @@ function getTaraLabel(actualPlanet, basePlanet){
   let diff = actualIndex - janmaIndex;
   if(diff < 0) diff += 9;
 
-  // ✅ RETURN ONLY TARA NAME
   return TARA_SEQUENCE[diff];
 }
 
@@ -3019,6 +3486,1011 @@ planets.forEach(p=>{
 
 
 
+
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+/* =========================================================
+   TABLE 3 : CUSPAL INTERLINK TABLE
+   (SWISS JSON DEPENDENT — STABLE)
+   ========================================================= */
+function buildCuspalTable(){
+
+  const table = document.getElementById("cuspTable");
+  if(!table) return;
+
+  /* clear old rows but keep header */
+  while(table.rows.length > 1){
+    table.deleteRow(1);
+  }
+
+  const data = window.__lastSwissData;
+  const cusps = data?.cusps || {};
+  if(!cusps) return;
+
+  /* =========================
+     DETERMINE PIVOT HOUSE
+     ========================= */
+  let pivot = document.getElementById("kundaliPivot")?.value || "Lagna";
+let pivotHouse = 1;
+
+/* 🔥 CSL PIVOT */
+if(pivot.endsWith("CSL")){
+  pivotHouse = parseInt(pivot,10) || 1;
+}
+
+/* 🔥 PLANET / LAGNA PIVOT */
+else if(pivot !== "Lagna"){
+  pivotHouse = getHouseFromLagna(pivot) || 1;
+}
+
+
+  /* =========================
+     BUILD ROTATED VIEW
+     ========================= */
+  for(let displayBhava = 1; displayBhava <= 12; displayBhava++){
+
+    /* Map displayed bhava to original bhava */
+    let originalBhava =
+      ((pivotHouse + displayBhava - 2) % 12) + 1;
+
+    const r = table.insertRow();
+
+    /* ---------- Bhava (FIXED DISPLAY) ---------- */
+    r.insertCell().textContent = displayBhava;
+
+    let abs = cusps[String(originalBhava)];
+    if(typeof abs !== "number"){
+
+      for(let i=0;i<6;i++) r.insertCell().textContent = "";
+      continue;
+    }
+
+    abs = ((abs % 360) + 360) % 360;
+
+    /* ---------- Zodiac Sign ---------- */
+    let signIndex = Math.floor(abs / 30);
+    let sign = signs[signIndex + 1] || "";
+    r.insertCell().textContent = sign;
+
+    /* ---------- Degree ---------- */
+    let degFloat = abs % 30;
+    let deg = Math.floor(degFloat);
+    let minFloat = (degFloat - deg) * 60;
+    let min = Math.floor(minFloat);
+    let sec = Math.round((minFloat - min) * 60);
+
+    if(sec === 60){ sec = 0; min++; }
+    if(min === 60){ min = 0; deg++; }
+
+    r.insertCell().textContent =
+      `${deg}° ${min}' ${sec}"`;
+
+    /* ---------- Sign Lord ---------- */
+    r.insertCell().textContent = SIGN_LORDS[sign] || "";
+
+    /* ---------- KP LORDS (FROM ORIGINAL BHAVA) ---------- */
+
+    function cuspStarLord(absDeg){
+      let starIndex = Math.floor((absDeg % 360) / NAKSHATRA_LEN);
+      return KP_DASHA_ORDER[starIndex % 9];
+    }
+
+    function cuspSubLord(absDeg){
+      let posInStar = absDeg % NAKSHATRA_LEN;
+      let starLord = cuspStarLord(absDeg);
+      let startIndex = KP_DASHA_ORDER.indexOf(starLord);
+
+      let acc = 0;
+      for(let i=0;i<9;i++){
+        let p = KP_DASHA_ORDER[(startIndex + i) % 9];
+        let portion =
+          (KP_DASHA_YEARS[p] / 120) * NAKSHATRA_LEN;
+        acc += portion;
+        if(posInStar <= acc) return p;
+      }
+      return "";
+    }
+
+    function cuspSubSubLord(absDeg){
+      let posInStar = absDeg % NAKSHATRA_LEN;
+      let starLord = cuspStarLord(absDeg);
+      let subLord  = cuspSubLord(absDeg);
+
+      let starIndex = KP_DASHA_ORDER.indexOf(starLord);
+      let subIndex  = KP_DASHA_ORDER.indexOf(subLord);
+
+      let acc = 0;
+      for(let i=0;i<9;i++){
+        let p = KP_DASHA_ORDER[(starIndex + i) % 9];
+        let pLen =
+          (KP_DASHA_YEARS[p] / 120) * NAKSHATRA_LEN;
+
+        if(posInStar > acc && posInStar <= acc + pLen){
+
+          let posInSub = posInStar - acc;
+          let acc2 = 0;
+
+          for(let j=0;j<9;j++){
+            let q = KP_DASHA_ORDER[(subIndex + j) % 9];
+            let qLen =
+              (KP_DASHA_YEARS[q] / 120) * pLen;
+            acc2 += qLen;
+            if(posInSub <= acc2) return q;
+          }
+        }
+        acc += pLen;
+      }
+      return "";
+    }
+
+    r.insertCell().textContent = cuspStarLord(abs);
+    r.insertCell().textContent = cuspSubLord(abs);
+    r.insertCell().textContent = cuspSubSubLord(abs);
+  }
+}
+
+
+
+
+
+
+/* ---------- HARD LINK TO REDRAW ---------- */
+function redrawCusps(){
+  buildCuspalTable();
+}
+
+/* ---------- CALL ON ALL MAJOR EVENTS ---------- */
+setTimeout(redrawCusps, 0);
+
+document.getElementById("trueNodeMode")
+  ?.addEventListener("change", redrawCusps);
+  
+  
+  
+  
+  /* 🔥 ROTATE TABLE 3 WHEN PIVOT CHANGES */
+document.getElementById("kundaliPivot")
+  ?.addEventListener("change", redrawCusps);
+
+/* 🔥 ROTATE TABLE 3 WHEN MODE CHANGES */
+["sign2signMode","kpMode","vedicMode"]
+.forEach(id=>{
+  document.getElementById(id)
+    ?.addEventListener("change", redrawCusps);
+});
+
+
+</script>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+/* =========================================================
+   SWISS EPHEMERIS JSON LOADER (OFFLINE)
+   ========================================================= */
+
+function absToSignDeg(abs){
+  abs = ((abs % 360) + 360) % 360;
+
+  let signIndex = Math.floor(abs / 30); // 0–11
+  let degFloat = abs % 30;
+
+  let deg = Math.floor(degFloat);
+  let minFloat = (degFloat - deg) * 60;
+  let min = Math.floor(minFloat);
+  let sec = Math.round((minFloat - min) * 60);
+
+  if(sec === 60){ sec = 0; min++; }
+  if(min === 60){ min = 0; deg++; }
+
+  return {
+    sign: signs[signIndex + 1],
+    deg,
+    min,
+    sec
+  };
+}
+
+
+
+
+
+
+
+
+
+
+function loadSwissJSON(){
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
+
+  input.onchange = e => {
+
+    const file = e.target.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+
+
+	let data;
+	try{
+	  data = JSON.parse(reader.result);
+	  window.__lastSwissData = data; // cache for True / Mean node toggle
+	}catch(err){
+	  alert("Invalid JSON file");
+	  return;
+	}
+
+
+      /* =========================================================
+         FORMAT DETECTION
+         Supports:
+         1) Old Swiss JSON  { Surya: 123.45 }
+         2) New Swiss JSON { lagna, planets:{...} }
+         ========================================================= */
+
+      /* ---------- NEW FORMAT ---------- */
+      if(data.planets && typeof data.lagna === "number"){
+
+        /* META (OPTIONAL DISPLAY / FUTURE USE) */
+        if(data.meta?.name){
+          document.getElementById("personName").value =
+            data.meta.name.toUpperCase().slice(0,20);
+        }
+
+        /* LAGNA */
+        let lag = absToSignDeg(data.lagna);
+        document.getElementById("Lagna_sign").value = lag.sign;
+        document.getElementById("Lagna_deg").value  = lag.deg;
+        document.getElementById("Lagna_min").value  = lag.min;
+        document.getElementById("Lagna_sec").value  = lag.sec;
+
+
+
+
+
+        /* PLANETS */
+        Object.keys(data.planets).forEach(p => {
+
+		  // Handle Rahu / Ketu separately
+		  if(p === "Rahu" || p === "Ketu") return;
+		  if(p.endsWith("_true")) return;
+
+		  if(!document.getElementById(p+"_sign")) return;
+
+		  let v = absToSignDeg(data.planets[p]);
+
+		  document.getElementById(p+"_sign").value = v.sign;
+		  document.getElementById(p+"_deg").value  = v.deg;
+		  document.getElementById(p+"_min").value  = v.min;
+		  document.getElementById(p+"_sec").value  = v.sec;
+		});
+
+		/* ===== NODE HANDLING ===== */
+		let rahuKey = USE_TRUE_NODE ? "Rahu_true" : "Rahu";
+		let ketuKey = USE_TRUE_NODE ? "Ketu_true" : "Ketu";
+
+		/* ===== NODE HANDLING (RAW, IMMUTABLE) ===== */
+
+			// store RAW Swiss degrees
+			window.__rawRahuAbs     = data.planets.Rahu ?? null;
+			window.__rawKetuAbs     = data.planets.Ketu ?? null;
+			window.__rawRahuTrueAbs = data.planets.Rahu_true ?? null;
+			window.__rawKetuTrueAbs = data.planets.Ketu_true ?? null;
+			
+			
+			// 🔥 SYNC NODE MODE AFTER SWISS LOAD
+			USE_TRUE_NODE =
+			  document.getElementById("trueNodeMode")?.checked || false;
+
+
+			// select correct source
+			let rahuAbs = USE_TRUE_NODE
+			  ? window.__rawRahuTrueAbs
+			  : window.__rawRahuAbs;
+
+			let ketuAbs = USE_TRUE_NODE
+			  ? window.__rawKetuTrueAbs
+			  : window.__rawKetuAbs;
+
+			// apply to UI (NO OFFSETS)
+			if(rahuAbs != null){
+			  let v = absToSignDeg(rahuAbs);
+			  Rahu_sign.value = v.sign;
+			  Rahu_deg.value  = v.deg;
+			  Rahu_min.value  = v.min;
+			  Rahu_sec.value  = v.sec;
+			}
+
+			if(ketuAbs != null){
+			  let v = absToSignDeg(ketuAbs);
+			  Ketu_sign.value = v.sign;
+			  Ketu_deg.value  = v.deg;
+			  Ketu_min.value  = v.min;
+			  Ketu_sec.value  = v.sec;
+			}
+
+       // 🔥 FORCE FULL INITIAL DRAW AFTER SWISS LOAD
+		redrawAll();   // includes drawSIKundali + counter table
+		redrawPLL();   // ensure PLL sync
+		return;
+
+      }
+
+      /* ---------- OLD FORMAT (BACKWARD COMPATIBLE) ---------- */
+      planets.forEach(p => {
+
+        if(data[p] == null) return;
+
+        let v = absToSignDeg(data[p]);
+
+        document.getElementById(p+"_sign").value = v.sign;
+        document.getElementById(p+"_deg").value  = v.deg;
+        document.getElementById(p+"_min").value  = v.min;
+        document.getElementById(p+"_sec").value  = v.sec;
+      });
+
+      redrawAll();
+      redrawPLL();
+    };
+
+    reader.readAsText(file);
+  };
+
+  input.click();
+}
+
+
+
+
+
+
+
+
+
+function loadSwissFromCache(data){
+
+  if(!data || !data.planets) return;
+
+  let lag = absToSignDeg(data.lagna);
+  Lagna_sign.value = lag.sign;
+  Lagna_deg.value  = lag.deg;
+  Lagna_min.value  = lag.min;
+  Lagna_sec.value  = lag.sec;
+
+  Object.keys(data.planets).forEach(p => {
+    if(p === "Rahu" || p === "Ketu") return;
+    if(p.endsWith("_true")) return;
+    if(!document.getElementById(p+"_sign")) return;
+
+    let v = absToSignDeg(data.planets[p]);
+    document.getElementById(p+"_sign").value = v.sign;
+    document.getElementById(p+"_deg").value  = v.deg;
+    document.getElementById(p+"_min").value  = v.min;
+    document.getElementById(p+"_sec").value  = v.sec;
+  });
+
+  let rahuKey = USE_TRUE_NODE ? "Rahu_true" : "Rahu";
+  let ketuKey = USE_TRUE_NODE ? "Ketu_true" : "Ketu";
+
+  if(data.planets[rahuKey]){
+    let v = absToSignDeg(data.planets[rahuKey]);
+    Rahu_sign.value = v.sign;
+    Rahu_deg.value  = v.deg;
+    Rahu_min.value  = v.min;
+    Rahu_sec.value  = v.sec;
+  }
+
+  if(data.planets[ketuKey]){
+    let v = absToSignDeg(data.planets[ketuKey]);
+    Ketu_sign.value = v.sign;
+    Ketu_deg.value  = v.deg;
+    Ketu_min.value  = v.min;
+    Ketu_sec.value  = v.sec;
+  }
+
+  redrawAll();
+  redrawPLL();
+}
+
+
+
+
+
+
+
+document.getElementById("trueNodeMode").addEventListener("change", e => {
+  USE_TRUE_NODE = e.target.checked;
+
+  // choose correct RAW source
+  let rahuAbs = USE_TRUE_NODE
+    ? window.__rawRahuTrueAbs
+    : window.__rawRahuAbs;
+
+  let ketuAbs = USE_TRUE_NODE
+    ? window.__rawKetuTrueAbs
+    : window.__rawKetuAbs;
+
+  if(rahuAbs != null){
+    let v = absToSignDeg(rahuAbs);
+    Rahu_sign.value = v.sign;
+    Rahu_deg.value  = v.deg;
+    Rahu_min.value  = v.min;
+    Rahu_sec.value  = v.sec;
+  }
+
+  if(ketuAbs != null){
+    let v = absToSignDeg(ketuAbs);
+    Ketu_sign.value = v.sign;
+    Ketu_deg.value  = v.deg;
+    Ketu_min.value  = v.min;
+    Ketu_sec.value  = v.sec;
+  }
+
+  redrawAll();
+  redrawPLL();
+});
+
+
+
+
+
+
+
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+/* =========================================================
+   TABLE 4 : CUSPAL PROMISE READER
+   FULLY ISOLATED ENGINE
+   ========================================================= */
+
+/* ---------- ORDINAL LABEL ---------- */
+function cuspOrdinal(n){
+  return n + (n===1?"ST":n===2?"ND":n===3?"RD":"TH");
+}
+
+/* ---------- GET CUSPAL SUB LORD (FROM SWISS) ---------- */
+function getCuspalSubLord(bhava){
+
+  const data = window.__lastSwissData;
+  if(!data || !data.cusps) return "";
+
+  let abs = data.cusps[String(bhava)];
+  if(typeof abs !== "number") return "";
+
+  abs = ((abs % 360) + 360) % 360;
+
+  let posInStar = abs % NAKSHATRA_LEN;
+
+  let starIndex = Math.floor(abs / NAKSHATRA_LEN);
+  let starLord = KP_DASHA_ORDER[starIndex % 9];
+
+  let startIndex = KP_DASHA_ORDER.indexOf(starLord);
+
+  let acc = 0;
+  for(let i=0;i<9;i++){
+    let p = KP_DASHA_ORDER[(startIndex + i) % 9];
+    let portion =
+      (KP_DASHA_YEARS[p] / 120) * NAKSHATRA_LEN;
+    acc += portion;
+    if(posInStar <= acc) return p;
+  }
+
+  return "";
+}
+
+/* =========================================================
+   ISOLATED KP HELPERS (NO SHARED LOGIC)
+   ========================================================= */
+
+function CPR_getHouse(p){ return getHouseFromPivot(p); }
+
+function CPR_getLords(p){
+  return (p==="Rahu"||p==="Ketu")
+    ? getRahuKetuHouseLordships(p)
+    : getHouseLordships(p);
+}
+
+function CPR_getSummation(p){
+  let set=new Set();
+  set.add(CPR_getHouse(p));
+  CPR_getLords(p).split(",").forEach(x=>x&&set.add(+x));
+  return [...set].sort((a,b)=>a-b).join(",");
+}
+
+function CPR_getConjunct(p){
+  return getConjunctPlanets(p);
+}
+
+function CPR_getAspecting(p){
+  return getAspectingPlanets(p);
+}
+
+function CPR_getAspectingHouses(p){
+  return getAspectingHouses(p);
+}
+
+function CPR_getAspectedBy(p){
+  return getAspectedBy(p);
+}
+
+
+
+
+
+
+
+
+/* =========================================================
+   CUSPAL ROTATION ENGINE (ISOLATED)
+   ========================================================= */
+
+function rotateHouseForCusp(house, cuspNo){
+  if(!document.getElementById("rotateCuspalMode")?.checked){
+    return house;
+  }
+
+  let rotated = house + (cuspNo - 1);
+
+  while(rotated > 12) rotated -= 12;
+  while(rotated <= 0) rotated += 12;
+
+  return rotated;
+}
+
+
+
+
+
+
+
+
+
+/* rotate comma-separated numbers */
+function rotateNumberList(text, cuspNo){
+  if(!text) return text;
+  return text.split(",")
+    .map(x => {
+      let n = parseInt(x,10);
+      return isNaN(n) ? x : rotateHouseForCusp(n, cuspNo);
+    })
+    .sort((a,b)=>a-b)
+    .join(",");
+}
+
+/* rotate numbers inside Planet(1,2,3) */
+function rotateEmbedded(text, cuspNo){
+  if(!text) return text;
+
+  return text.replace(/\(([^)]+)\)/g, (_, nums) => {
+    let rotated =
+      nums.split(",")
+          .map(n => rotateHouseForCusp(parseInt(n,10), cuspNo))
+          .sort((a,b)=>a-b)
+          .join(",");
+    return `(${rotated})`;
+  });
+}
+
+
+
+
+
+
+
+/* =========================================================
+   DYNAMIC CUSPAL ROTATION (TABLE 5 ONLY)
+   ========================================================= */
+function rotateHouseForDynamicCusp(house, cuspNo){
+  if(!document.getElementById("rotateDynamicCuspalMode")?.checked){
+    return house;
+  }
+
+  let rotated = house + (cuspNo - 1);
+
+  while(rotated > 12) rotated -= 12;
+  while(rotated <= 0) rotated += 12;
+
+  return rotated;
+}
+
+
+
+
+
+
+
+/* =========================================================
+   BUILD ONE CUSPAL PROMISE TABLE
+   ========================================================= */
+function buildCuspalPromiseTable(bhava, planet){
+
+  const wrap = document.createElement("div");
+
+  /* ---------- HEADING ---------- */
+  const h = document.createElement("h3");
+  h.style.textAlign="center";
+  h.style.marginTop="28px";
+  h.innerHTML =
+  `${cuspOrdinal(bhava)} Cuspal Sublord : ` +
+  `<span style="color:#facc15;font-weight:900">[ ${planet.toUpperCase()} ]</span>`;
+
+  wrap.appendChild(h);
+
+  /* ---------- TABLE ---------- */
+  const table = document.createElement("table");
+  table.style.maxWidth="1400px";
+  table.style.margin="0 auto";
+
+  table.innerHTML = `
+    <tr>
+      <th>Entity</th>
+      <th>Planet</th>
+      <th>House</th>
+      <th>Lords Of</th>
+      <th>Summation</th>
+      <th>Conjunct Planets</th>
+      <th>Aspecting</th>
+      <th>Aspecting Houses</th>
+      <th>Aspected By</th>
+      <th>Tara</th>
+    </tr>
+  `;
+
+  KP_LEVELS.forEach(level=>{
+
+    let actual = resolveEntity(planet, level);
+    if(!actual) return;
+
+    let r = table.insertRow();
+
+    r.insertCell().textContent = level;
+
+    let label = actual + (isTenantedPlanet(actual) ? " $" : "");
+    r.insertCell().textContent = label;
+
+    /* ---------- ROTATED OUTPUT (CUSPAL MODE SAFE) ---------- */
+
+			let house = rotateHouseForCusp(CPR_getHouse(actual), bhava);
+			let lords = rotateNumberList(CPR_getLords(actual), bhava);
+			let sum   = rotateNumberList(CPR_getSummation(actual), bhava);
+
+			let conj  = rotateEmbedded(CPR_getConjunct(actual), bhava);
+			let asp   = rotateEmbedded(CPR_getAspecting(actual), bhava);
+			let aspH  = rotateNumberList(CPR_getAspectingHouses(actual), bhava);
+
+			r.insertCell().textContent = house;
+			r.insertCell().textContent = lords;
+			r.insertCell().textContent = sum;
+			r.insertCell().textContent = conj;
+			r.insertCell().textContent = asp;
+			r.insertCell().textContent = aspH;
+			r.insertCell().textContent = CPR_getAspectedBy(actual);
+			// TARA COLUMN (RESTORED)
+			r.insertCell().textContent = getTaraLabel(actual, planet);
+
+
+  });
+
+  wrap.appendChild(table);
+  return wrap;
+}
+
+/* =========================================================
+   BUILD FULL CUSPAL PROMISE READER
+   ========================================================= */
+function buildCuspalPromiseReader(){
+
+  const container =
+    document.getElementById("cuspalPromiseContainer");
+  if(!container) return;
+
+  container.innerHTML="";
+
+  for(let bhava=1; bhava<=12; bhava++){
+
+    let subLord = getCuspalSubLord(bhava);
+    if(!subLord) continue;
+
+    container.appendChild(
+      buildCuspalPromiseTable(bhava, subLord)
+    );
+  }
+}
+
+/* =========================================================
+   HARD REDRAW LINK
+   ========================================================= */
+function redrawCuspalPromise(){
+  buildCuspalPromiseReader();
+}
+
+setTimeout(redrawCuspalPromise,0);
+
+document.getElementById("kundaliPivot")
+  ?.addEventListener("change", redrawCuspalPromise);
+
+document.getElementById("taraMode")
+  ?.addEventListener("change", redrawCuspalPromise);
+ 
+ document.getElementById("rotateCuspalMode")
+  ?.addEventListener("change", redrawCuspalPromise);
+
+
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+/* =========================================================
+   TABLE 5 : DYNAMIC CUSPAL PROMISE READER
+   FULLY ISOLATED ENGINE
+   ========================================================= */
+
+/* ---------- MAP CUSPS DYNAMICALLY ---------- */
+function getDynamicCuspalSubLord(dynamicBhava){
+
+  const data = window.__lastSwissData;
+  if(!data || !data.cusps) return "";
+
+  const pivot = document.getElementById("kundaliPivot").value;
+  if(!pivot) return "";
+
+  /* Pivot = Lagna → behave like Table 4 */
+  if(pivot === "Lagna"){
+    return getCuspalSubLord(dynamicBhava);
+  }
+
+  const pivotHouse = getHouseFromLagna(pivot);
+
+  if(!pivotHouse) return "";
+
+  let originalBhava = pivotHouse + (dynamicBhava - 1);
+  while(originalBhava > 12) originalBhava -= 12;
+
+  return getCuspalSubLord(originalBhava);
+}
+
+/* ---------- BUILD ONE DYNAMIC CUSP TABLE ---------- */
+function buildDynamicCuspalPromiseTable(bhava, planet){
+
+  const wrap = document.createElement("div");
+
+  const h = document.createElement("h3");
+  h.style.textAlign = "center";
+  h.style.marginTop = "28px";
+  h.innerHTML =
+    `${cuspOrdinal(bhava)} Cuspal Sublord : ` +
+    `<span style="color:#facc15;font-weight:900">[ ${planet.toUpperCase()} ]</span>`;
+
+  wrap.appendChild(h);
+
+  const table = document.createElement("table");
+  table.style.maxWidth = "1400px";
+  table.style.margin = "0 auto";
+
+  table.innerHTML = `
+    <tr>
+      <th>Entity</th>
+      <th>Planet</th>
+      <th>House</th>
+      <th>Lords Of</th>
+      <th>Summation</th>
+      <th>Conjunct Planets</th>
+      <th>Aspecting</th>
+      <th>Aspecting Houses</th>
+      <th>Aspected By</th>
+      <th>Tara</th>
+    </tr>
+  `;
+
+  KP_LEVELS.forEach(level => {
+
+    let actual = resolveEntity(planet, level);
+    if(!actual) return;
+
+    let r = table.insertRow();
+
+    r.insertCell().textContent = level;
+    r.insertCell().textContent =
+      actual + (isTenantedPlanet(actual) ? " $" : "");
+
+
+
+
+
+
+
+
+
+    /* 🔁 INTERNAL ROTATION (AUTO, NO CHECKBOX) */
+  let house = bhava === 1
+  ? CPR_getHouse(actual)
+  : rotateHouseForDynamicCusp(CPR_getHouse(actual), bhava);
+
+let lords = bhava === 1
+  ? CPR_getLords(actual)
+  : rotateNumberList(
+      CPR_getLords(actual)
+        .split(",")
+        .map(x=>rotateHouseForDynamicCusp(+x,bhava))
+        .join(","),
+      1
+    );
+
+let sum = bhava === 1
+  ? CPR_getSummation(actual)
+  : rotateNumberList(
+      CPR_getSummation(actual)
+        .split(",")
+        .map(x=>rotateHouseForDynamicCusp(+x,bhava))
+        .join(","),
+      1
+    );
+
+let conj = bhava === 1
+  ? CPR_getConjunct(actual)
+  : rotateEmbedded(
+      CPR_getConjunct(actual)
+        .replace(/\d+/g,n=>rotateHouseForDynamicCusp(+n,bhava)),
+      1
+    );
+
+let asp = bhava === 1
+  ? CPR_getAspecting(actual)
+  : rotateEmbedded(
+      CPR_getAspecting(actual)
+        .replace(/\d+/g,n=>rotateHouseForDynamicCusp(+n,bhava)),
+      1
+    );
+
+let aspH = bhava === 1
+  ? CPR_getAspectingHouses(actual)
+  : rotateNumberList(
+      CPR_getAspectingHouses(actual)
+        .split(",")
+        .map(x=>rotateHouseForDynamicCusp(+x,bhava))
+        .join(","),
+      1
+    );
+
+
+
+
+
+    r.insertCell().textContent = house;
+    r.insertCell().textContent = lords;
+    r.insertCell().textContent = sum;
+    r.insertCell().textContent = conj;
+    r.insertCell().textContent = asp;
+    r.insertCell().textContent = aspH;
+    r.insertCell().textContent = CPR_getAspectedBy(actual);
+    r.insertCell().textContent = getTaraLabel(actual, planet);
+  });
+
+  wrap.appendChild(table);
+  return wrap;
+}
+
+/* ---------- BUILD FULL TABLE 5 ---------- */
+function buildDynamicCuspalPromiseReader(){
+
+  const container =
+    document.getElementById("dynamicCuspalPromiseContainer");
+  if(!container) return;
+
+  container.innerHTML = "";
+
+  for(let bhava = 1; bhava <= 12; bhava++){
+
+    let subLord = getDynamicCuspalSubLord(bhava);
+    if(!subLord) continue;
+
+    container.appendChild(
+      buildDynamicCuspalPromiseTable(bhava, subLord)
+    );
+  }
+}
+
+/* ---------- HARD WIRES ---------- */
+setTimeout(buildDynamicCuspalPromiseReader, 0);
+
+["kundaliPivot","taraMode","sign2signMode","kpMode","vedicMode"]
+.forEach(id=>{
+  document.getElementById(id)
+    ?.addEventListener("change", buildDynamicCuspalPromiseReader);
+});
+
+
+
+document.getElementById("rotateDynamicCuspalMode")
+  ?.addEventListener("change", buildDynamicCuspalPromiseReader);
+  
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+
+/* =========================================================
+   HOUSE FROM LAGNA (FOR DYNAMIC CUSPAL LOGIC ONLY)
+   ========================================================= */
+function getHouseFromLagna(entity){
+
+  let savedPivot = document.getElementById("kundaliPivot").value;
+
+  // temporarily force Lagna as pivot
+  document.getElementById("kundaliPivot").value = "Lagna";
+
+  let h = getHouseFromPivot(entity);
+
+  // restore pivot
+  document.getElementById("kundaliPivot").value = savedPivot;
+
+  return h;
+}
 
 </script>
 
