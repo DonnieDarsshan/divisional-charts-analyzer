@@ -1202,6 +1202,8 @@ function applyLevelTheme(){
   
 <select id="taraMode">
   <option value="SSL_OF_CHANDRA" selected>SSL OF Chandra</option>
+  <option value="SL_OF_CHANDRA">SL OF Chandra</option>
+<option value="NL_OF_CHANDRA">NL OF Chandra</option>
   <option value="Star Lord">Star Lord</option>
   <option value="Planet">Planet</option>
   <option value="Surya">Surya</option>
@@ -3245,6 +3247,33 @@ function getTaraLabel(actualPlanet, basePlanet){
     // KP Sub-Sub Lord of Chandra
     janmaPlanet = getSubSubLord("Chandra");
   }
+  
+  
+  
+  
+  /* =========================
+   MODE : SL OF CHANDRA
+   ========================= */
+else if(mode === "SL_OF_CHANDRA"){
+
+  // KP Sub Lord of Chandra
+  janmaPlanet = getSubLord("Chandra");
+}
+
+/* =========================
+   MODE : NL OF CHANDRA
+   ========================= */
+else if(mode === "NL_OF_CHANDRA"){
+
+  // Nakshatra Lord (Star Lord) of Chandra
+  janmaPlanet = getStarLord("Chandra");
+}
+
+  
+  
+  
+  
+  
 
   /* =========================
      MODE : STAR LORD
