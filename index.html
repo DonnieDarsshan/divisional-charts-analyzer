@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 
-<script>
-/* 🔒 GLOBAL SAFE INITIALIZATION FOR GITHUB PAGES */
-window.__lastSwissData = null;
-window.__btrAbs = null;
-window.__planetRetro = {};
-window.__rawRahuAbs = null;
-window.__rawKetuAbs = null;
-window.__rawRahuTrueAbs = null;
-window.__rawKetuTrueAbs = null;
-window.__btrReady = false;
-</script>
-
 
 
 <head>
@@ -876,6 +864,54 @@ body[data-level-theme="on"]
 
 
 
+
+
+
+
+
+
+
+
+/* =========================
+   SOUTH INDIAN KUNDALI – CONTROL ROW SPLIT
+   ========================= */
+
+.siControls{
+  flex-direction:column;
+  gap:10px;
+}
+
+/* shared row style */
+.siRow{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+}
+
+/* top row – dropdowns + palette */
+.siRowTop{
+  border-bottom:1px solid rgba(16,185,129,0.35);
+  padding-bottom:8px;
+}
+
+/* bottom row – only checkboxes */
+.siRowBottom{
+  font-weight:900;
+}
+
+.siRowBottom label{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+
+
+
+
+
 </style>
 
 
@@ -1499,80 +1535,108 @@ function applyLevelTheme(){
      ========================= -->
 	 
 	 
-<div class="pivotBar">
+	 
+	 
+	 
+	 
+	 
+<!-- =========================
+     SOUTH INDIAN KUNDALI CONTROLS (SEPARATED ROWS)
+     ========================= -->
 
-  <span>Pivot :</span>
-  <select id="kundaliPivot"></select>
+<div class="pivotBar siControls">
 
-  <!-- ===== TARA MODE (NEW) ===== -->
-  <span>Tara :</span>
-  
-  
-  
-<select id="taraMode">
-  <option value="SSL_OF_CHANDRA" selected>SSL OF Chandra</option>
-  <option value="SL_OF_CHANDRA">SL OF Chandra</option>
-<option value="NL_OF_CHANDRA">NL OF Chandra</option>
-  <option value="Star Lord">Star Lord</option>
-  <option value="Planet">Planet</option>
-  <option value="Surya">Surya</option>
-  <option value="Chandra">Chandra</option>
-  <option value="Mangala">Mangala</option>
-  <option value="Rahu">Rahu</option>
-  <option value="Jupiter">Jupiter</option>
-  <option value="Saturn">Saturn</option>
-  <option value="Budha">Budha</option>
-  <option value="Ketu">Ketu</option>
-  <option value="Venus">Venus</option>
-</select>
+  <!-- ===== ROW 1 : DROPDOWNS + COLOR PALETTE ===== -->
+  <div class="siRow siRowTop">
 
+    <span>Pivot :</span>
+    <select id="kundaliPivot"></select>
 
-
-
-
-
-
-
-  <!-- =========================== -->
-
-  <label>
-    <input type="checkbox" id="sign2signMode">
-    Sign-to-Sign
-  </label>
-
-  <label>
-    <input type="checkbox" id="kpMode">
-    KP (0°)
-  </label>
-
-  <label>
-    <input type="checkbox" id="vedicMode" checked>
-    Vedic (15°)
-  </label>
-  
-  <label>
-  <input type="checkbox" id="showCuspMode">
-  Cusp
-</label>
+    <span>Tara :</span>
+    <select id="taraMode">
+      <option value="SSL_OF_CHANDRA" selected>SSL OF Chandra</option>
+      <option value="SL_OF_CHANDRA">SL OF Chandra</option>
+      <option value="NL_OF_CHANDRA">NL OF Chandra</option>
+      <option value="Star Lord">Star Lord</option>
+      <option value="Planet">Planet</option>
+      <option value="Surya">Surya</option>
+      <option value="Chandra">Chandra</option>
+      <option value="Mangala">Mangala</option>
+      <option value="Rahu">Rahu</option>
+      <option value="Jupiter">Jupiter</option>
+      <option value="Saturn">Saturn</option>
+      <option value="Budha">Budha</option>
+      <option value="Ketu">Ketu</option>
+      <option value="Venus">Venus</option>
+    </select>
+	
+	
+	
+	<span>Lagna :</span>
+	<select id="lagnaOverride">
+	  <option value="Aries">Aries</option>
+	  <option value="Taurus">Taurus</option>
+	  <option value="Gemini">Gemini</option>
+	  <option value="Cancer">Cancer</option>
+	  <option value="Leo">Leo</option>
+	  <option value="Virgo">Virgo</option>
+	  <option value="Libra">Libra</option>
+	  <option value="Scorpio">Scorpio</option>
+	  <option value="Sagittarius">Sagittarius</option>
+	  <option value="Capricorn">Capricorn</option>
+	  <option value="Aquarius">Aquarius</option>
+	  <option value="Pisces">Pisces</option>
+	</select>
 
 
-  <label>
-    <input type="checkbox" id="westAspMode" checked>
-    West Asp
-  </label>
-  
-  <label>
-  <input type="checkbox" id="trueNodeMode">
-  True Node
-</label>
 
 
-  <div id="colorPalette">
-    <div class="colorBox purple active" data-color="purple" title="Royal Purple"></div>
-    <div class="colorBox maroon" data-color="maroon" title="Blood Maroon"></div>
+
+    <!-- 🔮 COLOR PALETTE -->
+    <div id="colorPalette">
+      <div class="colorBox purple active" data-color="purple" title="Royal Purple"></div>
+      <div class="colorBox maroon" data-color="maroon" title="Blood Maroon"></div>
+    </div>
+
+  </div>
+
+  <!-- ===== ROW 2 : ALL CHECKBOXES (SINGLE ROW) ===== -->
+  <div class="siRow siRowBottom">
+
+    <label>
+      <input type="checkbox" id="sign2signMode">
+      Sign-to-Sign
+    </label>
+
+    <label>
+      <input type="checkbox" id="kpMode">
+      KP (0°)
+    </label>
+
+    <label>
+      <input type="checkbox" id="vedicMode" checked>
+      Vedic (15°)
+    </label>
+
+    <label>
+      <input type="checkbox" id="showCuspMode">
+      Cusp
+    </label>
+
+    <label>
+      <input type="checkbox" id="westAspMode" checked>
+      West Asp
+    </label>
+
+    <label>
+      <input type="checkbox" id="trueNodeMode" checked>
+      True Node
+    </label>
+
   </div>
 
 </div>
+
 
 
 
@@ -2514,21 +2578,47 @@ const SIGN_LORDS = {
 
 function getHouseLordships(planet){
 
+  // 1️⃣ Get actual Lagna absolute degree
   let pivot = document.getElementById("kundaliPivot").value;
   let pivotAbs = getPivotAbs(pivot);
   if(pivotAbs === null) return "";
 
+  // 2️⃣ Zodiac signs in order
   const ZODIAC = [
     "Aries","Taurus","Gemini","Cancer",
     "Leo","Virgo","Libra","Scorpio",
     "Sagittarius","Capricorn","Aquarius","Pisces"
   ];
 
-  let pivotSignIndex = Math.floor(pivotAbs / 30);
+
+
+// 3️⃣ DEFAULT Lagna sign from pivot (LORDSHIP ONLY)
+let lagnaSignIndex = Math.floor(pivotAbs / 30);
+let lagnaDegInSign = pivotAbs % 30;
+
+// 🔥 APPLY 15° RULE — ONLY FOR LORDSHIP
+if(lagnaDegInSign >= 15){
+  lagnaSignIndex = (lagnaSignIndex + 1) % 12;
+}
+
+
+
+
+
+  // 4️⃣ 🔥 MANUAL LAGNA OVERRIDE (ONLY FOR LORDSHIP)
+  const override = document.getElementById("lagnaOverride")?.value;
+  if(override){
+    const idx = ZODIAC.indexOf(override);
+    if(idx !== -1){
+      lagnaSignIndex = idx;
+    }
+  }
+
+  // 5️⃣ Calculate lordship houses
   let houses = [];
 
-  for(let i=0;i<12;i++){
-    let sign = ZODIAC[(pivotSignIndex + i) % 12];
+  for(let i = 0; i < 12; i++){
+    let sign = ZODIAC[(lagnaSignIndex + i) % 12];
     let lord = SIGN_LORDS[sign];
 
     if(lord === planet){
@@ -2538,6 +2628,7 @@ function getHouseLordships(planet){
 
   return houses.join(",");
 }
+
 
 
 
@@ -2787,12 +2878,42 @@ if(window.__selectedCounterRows[p]){
    AUTO REFRESH HOOKS
    ========================================================= */
 document.getElementById("kundaliPivot")
-  .addEventListener("change", buildCounterTable);
+  .addEventListener("change", () => {
+
+    /* 🔥 RESET lagna override when pivot changes */
+    const lagnaSel = document.getElementById("lagnaOverride");
+    if(lagnaSel){
+      delete lagnaSel.dataset.userTouched;
+    }
+
+    /* full redraw so Lagna re-syncs correctly */
+    redrawAll();
+  });
 
 
 /* 🔥 TARA MODE → TABLE 1 SYNC (FIX) */
 document.getElementById("taraMode")
   ?.addEventListener("change", buildCounterTable);
+
+
+
+
+
+
+
+
+document.getElementById("lagnaOverride")
+  ?.addEventListener("change", e => {
+
+    // 🔒 user explicitly changed Lagna
+    e.target.dataset.userTouched = "1";
+
+    buildCounterTable();
+    redrawPLL();
+  });
+
+
+
 
 
 ["Lagna","Surya","Chandra","Mangala","Rahu",
@@ -3141,6 +3262,36 @@ function getPivotReferenceAbs(pivot){
    ========================================================= */
 function redrawAll(){
   drawSIKundali();
+  
+  
+		/* 🔥 Sync Lagna Override with LORDSHIP Lagna (15° RULE ONLY) */
+		(function(){
+		  const sel = document.getElementById("lagnaOverride");
+		  if(!sel) return;
+
+		  // do not override manual choice
+		  if(sel.dataset.userTouched) return;
+
+		  const pivot = document.getElementById("kundaliPivot")?.value;
+		  if(!pivot) return;
+
+		  const pivotAbs = getPivotAbs(pivot);
+		  if(pivotAbs == null) return;
+
+		  let signIndex = Math.floor(pivotAbs / 30);
+		  let degInSign = pivotAbs % 30;
+
+		  // 🔥 APPLY 15° RULE — ONLY FOR LORDSHIP UI
+		  if(degInSign >= 15){
+			signIndex = (signIndex + 1) % 12;
+		  }
+
+		  sel.value = signs[signIndex + 1];
+		})();
+
+
+
+  
   buildCounterTable();
   redrawPLL();
   buildCuspalTable();
