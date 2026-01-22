@@ -2327,6 +2327,27 @@ TABLE 1 -  PLANET COUNTER TABLE
 
 </table>
 
+
+<div style="
+  margin-top:32px;
+  margin-bottom:14px;
+  text-align:center;
+  font-size:17px;
+  font-weight:900;
+  color:#fef3c7;
+  letter-spacing:0.9px;
+">
+ 
+
+  <span style="margin-left:26px">$</span> = UnTenanted
+  <span style="margin-left:40px">%</span> = Own Star / Own Sub
+  <span style="margin-left:40px">(R)</span> = Retrograde
+  <span style="margin-left:40px">#</span> = Star-Lord Exchange
+</div>
+
+
+
+
 </div>
 
 <script>
@@ -3467,9 +3488,22 @@ function isRetroPlanet(p){
   ]);
 
   if(!RETRO_ALLOWED.has(p)) return false;
+  
+  
+  // 🔥 NODES ARE ALWAYS RETRO (ASTRONOMICAL RULE)
+if(p === "Rahu" || p === "Ketu") return true;
+
 
   return window.__planetRetro[p] === true;
 }
+
+
+
+
+
+
+
+
 
 
 const PLANET_SHORT = {
@@ -5266,10 +5300,16 @@ function buildCuspalPromiseTable(bhava, planet){
 	
 
     let label = actual;
-
-	if(isRetroPlanet(actual)){
+	
+	
+		if(isRetroPlanet(actual)){
 	  label += " (R)";
 	}
+	
+	
+	
+
+	
 
 	if(isTenantedPlanet(actual)){
 	  label += " $";
@@ -5492,6 +5532,12 @@ function buildDynamicCuspalPromiseTable(bhava, planet){
 	
 	
     let label = actual;
+
+	if(isRetroPlanet(actual)){
+  label += " (R)";
+}
+
+
 
 	if(isTenantedPlanet(actual)){
 	  label += " $";
