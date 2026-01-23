@@ -769,64 +769,37 @@ body[data-level-theme="on"]
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 /* =========================================================
-   TABLE 1 – FORCE FULL WIDTH + NO WRAP (FIX SHRINK ISSUE)
+   TABLE 1 — TRUE AUTO-FIT, NO OVERLAP, NO CROPPING
    ========================================================= */
 
-
-
-/* Planet column – NEVER wrap */
-#counterTable th:nth-child(1),
-#counterTable td:nth-child(1){
-  white-space: nowrap;           /* 🔒 prevent line break */
-  min-width: 180px;              /* enough for long labels */
-  font-weight: 900;
+/* Let browser size columns naturally */
+#counterTable{
+  table-layout:auto;
 }
 
-/* Forward & Retro – compact but readable */
-#counterTable th:nth-child(2),
-#counterTable td:nth-child(2),
-#counterTable th:nth-child(8),
-#counterTable td:nth-child(8){
-  width: 70px;
-  white-space: nowrap;
+/* Keep text readable */
+#counterTable th,
+#counterTable td{
+  white-space:nowrap;
+  padding:8px 10px;
 }
 
-/* Lordship & Summation – allow space */
-#counterTable th:nth-child(3),
-#counterTable td:nth-child(3),
-#counterTable th:nth-child(4),
-#counterTable td:nth-child(4){
-  min-width: 110px;
-  white-space: nowrap;
-}
-
-/* Tara column */
-#counterTable th:nth-child(5),
-#counterTable td:nth-child(5){
-  min-width: 120px;
-  white-space: nowrap;
-}
-
-/* Degree Difference */
-#counterTable th:nth-child(6),
-#counterTable td:nth-child(6){
-  min-width: 120px;
-  white-space: nowrap;
-}
-
-/* West Aspect */
-#counterTable th:nth-child(7),
-#counterTable td:nth-child(7){
-  min-width: 120px;
-  white-space: nowrap;
-}
-
-/* State column */
-#counterTable th:nth-child(9),
-#counterTable td:nth-child(9){
-  min-width: 90px;
-  white-space: nowrap;
+/* Planet names must never wrap */
+#counterTable th:first-child,
+#counterTable td:first-child{
+  font-weight:900;
 }
 
 
@@ -846,21 +819,10 @@ body[data-level-theme="on"]
 
 #counterTable{
   width:100%;
-  table-layout:auto;      /* 🔥 allow browser auto sizing */
+  table-layout:auto;      /* ✅ TRUE AUTO-FIT */
 }
 
-/* Prevent wrapping ONLY for planet names */
-#counterTable th:first-child,
-#counterTable td:first-child{
-  white-space:nowrap;
-  font-weight:900;
-}
 
-/* Improve spacing for all columns */
-#counterTable th,
-#counterTable td{
-  padding:10px 12px;
-}
 
 
 
@@ -2319,8 +2281,9 @@ TABLE 1 -  PLANET COUNTER TABLE
  <th>Lordship</th>
  <th>Summation</th>
  <th>Tara</th>
- <th>Degree Difference</th>
+ <th>Degree Diff</th>
  <th>West Aspect</th>
+ <th>(R) Mirror</th>
  <th>Retro</th>
  <th>State</th>
 </tr>
@@ -2876,6 +2839,29 @@ if(window.__selectedCounterRows[p]){
 
 		// West Aspect
 		r.insertCell().textContent = aspect;
+
+		// (R) Mirror — USER DEFINED MIRROR MAP (LOCKED)
+		const MIRROR_MAP = {
+		  1: 1,
+		  2: 12,
+		  3: 11,
+		  4: 10,
+		  5: 9,
+		  6: 8,
+		  7: 7,
+		  8: 6,
+		  9: 5,
+		  10: 4,
+		  11: 3,
+		  12: 2
+		};
+
+		let mirror =
+		  (typeof fwd === "number" && MIRROR_MAP[fwd])
+		    ? MIRROR_MAP[fwd]
+		    : "";
+
+		r.insertCell().textContent = mirror;
 
 		// Retro
 		r.insertCell().textContent = ret;
