@@ -1640,7 +1640,7 @@ function applyLevelTheme(){
     </label>
 
     <label>
-      <input type="checkbox" id="trueNodeMode" checked>
+      <input type="checkbox" id="trueNodeMode" >
       True Node
     </label>
 
@@ -1971,12 +1971,30 @@ function getGlobalOffset(){
 
   let pivotDeg = pivotAbs % 30;
 
-  // KP → pivot becomes 0°
+  /* ===== KP MODE =====
+     0°–14°59′ → same sign at 0°
+     15°–29°59′ → next sign at 0°
+  */
+  
+  
   if(kpMode.checked){
-    return -pivotDeg;
-  }
 
-  // Vedic → pivot becomes 15°
+	  /* CSL pivots never shift */
+	  if(pivot.endsWith("CSL")){
+		return 0;
+	  }
+
+	  let targetDeg = 0;
+	  if(pivotDeg >= 15){
+		targetDeg = 30;
+	  }
+	  return targetDeg - pivotDeg;
+	}
+
+
+  /* ===== VEDIC MODE =====
+     Always move to 15° of same sign
+  */
   if(vedicMode.checked){
     return 15 - pivotDeg;
   }
@@ -2018,11 +2036,53 @@ document
 
 
 
-  let pivot = document.getElementById("kundaliPivot").value;
-  let pivotSign = getPivotSign(pivot);
-  let pivotAbs  = getPivotAbs(pivot);
 
-  if(!pivotSign || pivotAbs === null) return;
+
+
+  let pivot = document.getElementById("kundaliPivot").value;
+  let pivotAbs  = getPivotAbs(pivot);
+  if(pivotAbs === null) return;
+
+
+
+
+
+
+
+
+
+
+
+	/* =========================================
+	   MODE-SAFE PIVOT SIGN
+	   ========================================= */
+	let signIndex = Math.floor(pivotAbs / 30);
+	let degInSign = pivotAbs % 30;
+
+
+
+
+	/* KP MODE ONLY → allow sign shift
+   BUT NEVER FOR CSL PIVOTS
+	*/
+	if(
+	  kpMode.checked &&
+	  !pivot.endsWith("CSL") &&
+	  degInSign >= 15
+	){
+	  signIndex = (signIndex + 1) % 12;
+	}
+
+
+	/* VEDIC + SIGN-TO-SIGN → same sign */
+	let pivotSign = signs[signIndex + 1];
+	if(!pivotSign) return;
+
+
+
+
+
+
 
 
 
@@ -2076,9 +2136,77 @@ cells.forEach(cell => {
 
 
 
-/* find Lagna sign index in zodiac */
-let lagnaZodiacIndex = ZODIAC_ORDER.indexOf(pivotSign);
-if(lagnaZodiacIndex === -1) return;
+
+
+
+
+
+
+
+/* =========================================
+   MODE-BASED HOUSE NUMBERING
+   ========================================= */
+
+let baseSignIndex;
+
+/* ===== SIGN-TO-SIGN MODE =====
+   Always use original Lagna sign
+*/
+if(sign2signMode.checked){
+
+  let lagnaAbs = getAbsDeg("Lagna");
+  if(lagnaAbs === null) return;
+
+  baseSignIndex = Math.floor(lagnaAbs / 30);
+}
+
+
+
+
+
+
+
+
+
+/* ===== KP MODE =====
+   Use pivot rule (0–14 same, 15–29 next)
+*/
+else if(kpMode.checked){
+
+  /* CSL pivot → use cusp number as house-1 */
+  if(pivot.endsWith("CSL")){
+    let cuspNo = parseInt(pivot,10);
+    baseSignIndex = Math.floor(
+      getAbsDeg(cuspNo + "CSL") / 30
+    );
+  }else{
+
+    let signIndex = Math.floor(pivotAbs / 30);
+    let degInSign = pivotAbs % 30;
+
+    if(degInSign >= 15){
+      signIndex = (signIndex + 1) % 12;
+    }
+
+    baseSignIndex = signIndex;
+  }
+}
+
+
+/* ===== VEDIC MODE =====
+   Always same sign (no shift)
+*/
+else if(vedicMode.checked){
+
+  baseSignIndex = Math.floor(pivotAbs / 30);
+}
+
+
+
+
+
+
+
 
 /* assign houses cyclically */
 cells.forEach(cell => {
@@ -2088,10 +2216,11 @@ cells.forEach(cell => {
   if(signZodiacIndex === -1) return;
 
   let house =
-    (signZodiacIndex - lagnaZodiacIndex + 12) % 12 + 1;
+    (signZodiacIndex - baseSignIndex + 12) % 12 + 1;
 
   cell.querySelector(".siHouse").textContent = house;
 });
+
 
 
 
@@ -2150,39 +2279,64 @@ if(document.getElementById("showCuspMode").checked){
   Object.keys(cusps)
     .map(Number)
     .sort((a,b)=>a-b)
-    .forEach(c => {
+    
+	
+	
+	.forEach(c => {
 
-      let abs = cusps[String(c)];
-      if(typeof abs !== "number") return;
+	  let abs = cusps[String(c)];
+	  if(typeof abs !== "number") return;
 
-      let shifted = abs + offset;
-      shifted = ((shifted % 360) + 360) % 360;
+	  /* 🔁 CSL ROTATION */
+	  let displayC = c;
 
-      let signIndex = Math.floor(shifted / 30);
-      let sign = signs[signIndex + 1];
-      if(!sign) return;
+	  if(pivot.endsWith("CSL")){
+		let pivotC = parseInt(pivot,10);
 
-      if(!buckets[sign]) buckets[sign] = [];
+		displayC = c - pivotC + 1;
+		if(displayC <= 0) displayC += 12;
+		if(displayC > 12) displayC -= 12;
+	  }
 
+	  /* 🔒 CUSPS MUST NEVER SHIFT IN KP MODE */
+	  let shifted;
 
+	  if(kpMode.checked){
+		shifted = abs;
+	  }else{
+		shifted = abs + offset;
+	  }
 
-	/* ❌ PREVENT DUPLICATE CUSP INSERTION */
-		if(
-		  !buckets[sign].some(x => x.type === "cusp" && x.label === `${c}C`)
-		){
-		  buckets[sign].push({
-			type: "cusp",
-			label: `${c}C`,
-			deg: shifted % 30,
-			abs: shifted,
-			signIndex,
-			text: `${c}C ${formatDegMinSec(shifted)}`
-		  });
-		}
+	  shifted = ((shifted % 360) + 360) % 360;
 
-	  
-	  
-    });
+	  let signIndex = Math.floor(shifted / 30);
+	  let sign = signs[signIndex + 1];
+	  if(!sign) return;
+
+	  if(!buckets[sign]) buckets[sign] = [];
+
+	  /* prevent duplicate */
+	  if(
+		!buckets[sign].some(x => x.type === "cusp" && x.label === `${displayC}C`)
+	  ){
+		buckets[sign].push({
+		  type: "cusp",
+		  label: `${displayC}C`,
+		  deg: shifted % 30,
+		  abs: shifted,
+		  signIndex,
+		  text: `${displayC}C ${formatDegMinSec(shifted)}`
+		});
+	  }
+
+	});
+
+	
+	
+	
+	
+	
+	
 }
 
 
@@ -2393,10 +2547,17 @@ drawSIKundali();
   </select>
 
   <span style="margin-left:18px">Order :</span>
+  
+  
+  
   <select id="pllOrderSelect">
-    <option value="">Auto (Follow Pivot)</option>
-    <option value="__CHANDRA_STAR__">Chandra’s Star Lord</option>
-    <option value="Surya">Surya</option>
+  <option value="">Auto (Follow Pivot)</option>
+  <option value="__LAGNA_STAR__">Lagna’s Star Lord</option>
+  <option value="__CHANDRA_STAR__">Chandra’s Star Lord</option>
+  <option value="Surya">Surya</option>
+
+	
+	
     <option value="Chandra">Chandra</option>
     <option value="Mangala">Mangala</option>
     <option value="Rahu">Rahu</option>
@@ -3857,30 +4018,71 @@ function redrawAll(){
   drawSIKundali();
   
   
-		/* 🔥 Sync Lagna Override with LORDSHIP Lagna (15° RULE ONLY) */
-		(function(){
-		  const sel = document.getElementById("lagnaOverride");
-		  if(!sel) return;
+  
+  
+  
+  
+  
+  
+  
+  
+	/* =========================================
+   AUTO-SYNC LAGNA DROPDOWN WITH PIVOT
+   ========================================= */
+	let lagnaSelect = document.getElementById("lagnaOverride");
 
-		  // do not override manual choice
-		  if(sel.dataset.userTouched) return;
+	if(lagnaSelect){
 
-		  const pivot = document.getElementById("kundaliPivot")?.value;
-		  if(!pivot) return;
+	  let pivot = document.getElementById("kundaliPivot").value;
+	  let pivotAbs = getPivotAbs(pivot);
 
-		  const pivotAbs = getPivotAbs(pivot);
-		  if(pivotAbs == null) return;
+	  if(pivotAbs !== null){
 
-		  let signIndex = Math.floor(pivotAbs / 30);
-		  let degInSign = pivotAbs % 30;
+		let signIndex = Math.floor(pivotAbs / 30);
+		let degInSign = pivotAbs % 30;
 
-		  // 🔥 APPLY 15° RULE — ONLY FOR LORDSHIP UI
-		  if(degInSign >= 15){
-			signIndex = (signIndex + 1) % 12;
+		/* SIGN-TO-SIGN MODE */
+		if(sign2signMode.checked){
+		  // always use original Lagna sign
+		  let lagnaAbs = getAbsDeg("Lagna");
+		  if(lagnaAbs !== null){
+			signIndex = Math.floor(lagnaAbs / 30);
 		  }
+		}
 
-		  sel.value = signs[signIndex + 1];
-		})();
+		/* KP MODE */
+		else if(kpMode.checked){
+
+	  /* CSL pivots never shift sign */
+	  if(!pivot.endsWith("CSL") && degInSign >= 15){
+		signIndex = (signIndex + 1) % 12;
+	  }
+	}
+
+
+		/* VEDIC MODE */
+		else if(vedicMode.checked){
+		  // always same sign
+		}
+
+		lagnaSelect.value = signs[signIndex + 1];
+	  }
+	}
+
+
+  
+  
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4871,6 +5073,18 @@ function getPLLPlanetOrder(pivot){
     "Jupiter","Saturn","Budha","Ketu","Venus"
   ];
 
+  /* ===== SPECIAL MODE : LAGNA STAR LORD ===== */
+  if(
+    window.__pllOrderOverride === "__LAGNA_STAR__" &&
+    pivot === "Lagna"
+  ){
+    const star = getStarLord("Lagna");
+    if(BASE.includes(star)){
+      let i = BASE.indexOf(star);
+      return [...BASE.slice(i), ...BASE.slice(0,i)];
+    }
+  }
+
   /* ===== SPECIAL MODE : CHANDRA STAR LORD ===== */
   if(
     window.__pllOrderOverride === "__CHANDRA_STAR__" &&
@@ -4901,6 +5115,20 @@ function getPLLPlanetOrder(pivot){
 
   return BASE;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5127,14 +5355,14 @@ document.getElementById("taraMode")
 setTimeout(redrawPLL, 0);
 
 
-/* ===== DEFAULT ORDER : CHANDRA STAR LORD (LAGNA ONLY) ===== */
+/* ===== DEFAULT ORDER : LAGNA STAR LORD (LAGNA ONLY) ===== */
 (function(){
   const pivot = document.getElementById("kundaliPivot")?.value;
   const sel   = document.getElementById("pllOrderSelect");
 
   if(pivot === "Lagna" && sel){
-    sel.value = "__CHANDRA_STAR__";
-    window.__pllOrderOverride = "__CHANDRA_STAR__";
+    sel.value = "__LAGNA_STAR__";
+    window.__pllOrderOverride = "__LAGNA_STAR__";
     redrawPLL();
   }
 })();
@@ -5531,17 +5759,22 @@ function loadSwissJSON(){
 
     reader.onload = () => {
 
+	let raw = reader.result;
+
+	/* 🔥 BOM + WHITESPACE SAFE PARSE */
+	raw = raw.replace(/^\uFEFF/, "").trim();
 
 	let data;
 	try{
-	  data = JSON.parse(reader.result);
+	  data = JSON.parse(raw);
 	  window.__lastSwissData = data; // cache for True / Mean node toggle
 	  // ===== STORE RETROGRADE FLAGS (GLOBAL) =====
-	 window.__planetRetro = data.planets_retro || {};
+	  window.__planetRetro = data.planets_retro || {};
 
 	  initBTRFromSwiss(data.meta);
 
 	}catch(err){
+	  console.error("Swiss JSON parse error:", err);
 	  alert("Invalid JSON file");
 	  return;
 	}
