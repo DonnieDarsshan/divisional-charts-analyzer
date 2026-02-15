@@ -4408,6 +4408,14 @@ function getAspectingHouses(planet){
 
 
 
+
+
+
+
+
+
+
+
 function getAspectingPlanets(entity){
 
   let result = [];
@@ -4423,34 +4431,29 @@ function getAspectingPlanets(entity){
     let targetHouse = baseHouse + (a - 1);
     if(targetHouse > 12) targetHouse -= 12;
 
+
+
+
+
     /* search which planets are sitting in this house */
     planets.forEach(p => {
 
-      if(p === "Lagna") return;   // ❌ ignore Lagna
-	  if(p === "Rahu" || p === "Ketu") return;   // ❌ remove nodes from Aspecting
+      if(p === "Lagna") return;   // ignore Lagna
       if(p === entity) return;
+
+      /* ❌ remove Rahu ↔ Ketu mutual aspect */
+      if(
+        (entity==="Rahu" && p==="Ketu") ||
+        (entity==="Ketu" && p==="Rahu")
+      ){
+        return;
+      }
 
       let pHouse = getHouseFromPivot(p);
       if(pHouse !== targetHouse) return;
 
-      let set = new Set();
+      result.push(PLANET_SHORT[p]);
 
-      /* placed house */
-      set.add(pHouse);
-
-      /* lordships */
-      let lords =
-        (p==="Rahu"||p==="Ketu")
-        ? getRahuKetuHouseLordships(p)
-        : getHouseLordships(p);
-
-      lords.split(",").forEach(x=>{
-        if(x) set.add(+x);
-      });
-
-      result.push(
-        `${PLANET_SHORT[p]}(${[...set].sort((a,b)=>a-b).join(",")})`
-      );
 
     });
   });
@@ -4467,16 +4470,17 @@ function getAspectingPlanets(entity){
 
 
 
+
 function getAspectedBy(entity){
 
   let list = [];
 
   planets.forEach(p=>{
 
-    if(p === "Lagna") return;   // ❌ Lagna never aspects
+    if(p === "Lagna") return;
     if(p === entity) return;
 
-    /* ❌ remove Rahu ↔ Ketu mutual aspect */
+    /* remove Rahu ↔ Ketu mutual aspect */
     if(
       (entity==="Rahu" && p==="Ketu") ||
       (entity==="Ketu" && p==="Rahu")
@@ -4493,13 +4497,34 @@ function getAspectedBy(entity){
       if(h > 12) h -= 12;
 
       if(h === eHouse){
-        list.push(PLANET_SHORT[p]);
+
+        let set = new Set();
+
+        /* placed house */
+        set.add(pHouse);
+
+        /* lordships */
+        let lords =
+          (p==="Rahu"||p==="Ketu")
+          ? getRahuKetuHouseLordships(p)
+          : getHouseLordships(p);
+
+        lords.split(",").forEach(x=>{
+          if(x) set.add(+x);
+        });
+
+        list.push(
+          `${PLANET_SHORT[p]}(${[...set].sort((a,b)=>a-b).join(",")})`
+        );
       }
     });
   });
 
   return [...new Set(list)].join(", ");
 }
+
+
+
 
 
 
@@ -5218,18 +5243,17 @@ const PLL_PLANETS = getPLLPlanetOrder(pivot);
       <tr>
         <th>Entity</th>
 		<th>Planet</th>
+		<th>Tara</th>
 		<th>House</th>
 		<th>Lords Of</th>
 		<th>Summation</th>
 		<th>Conjunct Planets</th>
-		<th>Aspecting</th>
-		<th>Aspecting Houses</th>
 		<th>Aspected By</th>
-		<th>Tara</th>
-
-
+		<th>Aspecting Houses</th>
+		<th>Aspecting</th>
       </tr>
     `;
+
 
     /* ---------- 6 LEVELS ---------- */
     KP_LEVELS.forEach(level => {
@@ -5283,8 +5307,10 @@ const PLL_PLANETS = getPLLPlanetOrder(pivot);
 		
 
 
-		r.insertCell().textContent = planetLabel;
+	r.insertCell().textContent = planetLabel;
 
+	// TARA
+	r.insertCell().textContent = getTaraLabel(actual, p);
 
       r.insertCell().textContent = getHouseFromPivot(actual);
 
@@ -5296,11 +5322,10 @@ const PLL_PLANETS = getPLLPlanetOrder(pivot);
       r.insertCell().textContent = lords;
 	r.insertCell().textContent = getSummation(actual);
 	r.insertCell().textContent = getConjunctPlanets(actual);
-	r.insertCell().textContent = getAspectingPlanets(actual);
-	r.insertCell().textContent = getAspectingHouses(actual);
 	r.insertCell().textContent = getAspectedBy(actual);
-	// TARA COLUMN
-	r.insertCell().textContent = getTaraLabel(actual, p);
+	r.insertCell().textContent = getAspectingHouses(actual);
+	r.insertCell().textContent = getAspectingPlanets(actual);
+
 
 
 
@@ -6231,20 +6256,21 @@ function buildCuspalPromiseTable(bhava, planet){
   table.style.maxWidth="1400px";
   table.style.margin="0 auto";
 
-  table.innerHTML = `
+    table.innerHTML = `
     <tr>
       <th>Entity</th>
       <th>Planet</th>
+      <th>Tara</th>
       <th>House</th>
       <th>Lords Of</th>
       <th>Summation</th>
       <th>Conjunct Planets</th>
-      <th>Aspecting</th>
-      <th>Aspecting Houses</th>
       <th>Aspected By</th>
-      <th>Tara</th>
+      <th>Aspecting Houses</th>
+      <th>Aspecting</th>
     </tr>
   `;
+
 
   KP_LEVELS.forEach(level=>{
 
@@ -6315,15 +6341,16 @@ function buildCuspalPromiseTable(bhava, planet){
 			let asp   = rotateEmbedded(CPR_getAspecting(actual), bhava);
 			let aspH  = rotateNumberList(CPR_getAspectingHouses(actual), bhava);
 
+			// TARA
+			r.insertCell().textContent = getTaraLabel(actual, planet);
+
 			r.insertCell().textContent = house;
 			r.insertCell().textContent = lords;
 			r.insertCell().textContent = sum;
 			r.insertCell().textContent = conj;
-			r.insertCell().textContent = asp;
-			r.insertCell().textContent = aspH;
 			r.insertCell().textContent = CPR_getAspectedBy(actual);
-			// TARA COLUMN (RESTORED)
-			r.insertCell().textContent = getTaraLabel(actual, planet);
+			r.insertCell().textContent = aspH;
+			r.insertCell().textContent = asp;
 
 
   });
@@ -6469,20 +6496,21 @@ function buildDynamicCuspalPromiseTable(bhava, planet){
   table.style.maxWidth = "1400px";
   table.style.margin = "0 auto";
 
-  table.innerHTML = `
+   table.innerHTML = `
     <tr>
       <th>Entity</th>
       <th>Planet</th>
+      <th>Tara</th>
       <th>House</th>
       <th>Lords Of</th>
       <th>Summation</th>
       <th>Conjunct Planets</th>
-      <th>Aspecting</th>
-      <th>Aspecting Houses</th>
       <th>Aspected By</th>
-      <th>Tara</th>
+      <th>Aspecting Houses</th>
+      <th>Aspecting</th>
     </tr>
   `;
+
 
   KP_LEVELS.forEach(level => {
 
@@ -6594,14 +6622,14 @@ let aspH = bhava === 1
 
 
 
+    r.insertCell().textContent = getTaraLabel(actual, planet);
     r.insertCell().textContent = house;
     r.insertCell().textContent = lords;
     r.insertCell().textContent = sum;
     r.insertCell().textContent = conj;
-    r.insertCell().textContent = asp;
-    r.insertCell().textContent = aspH;
     r.insertCell().textContent = CPR_getAspectedBy(actual);
-    r.insertCell().textContent = getTaraLabel(actual, planet);
+    r.insertCell().textContent = aspH;
+    r.insertCell().textContent = asp;
   });
 
   wrap.appendChild(table);
